@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>unhappycar</title>
+    <link rel="icon" href="https://bbs-static.miyoushe.com/static/2024/06/12/7982e4f54092be80c43a251f26e44235_6026540790739799944.png" type="image/png">    
+    <link rel="stylesheet" href="styles.css">
+    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+    <script>LA.init({id:"3M2oGTfSWji6ROQb",ck:"3M2oGTfSWji6ROQb"})</script>
+</head>
+<body>
+    <!-- 初始界面 -->
+    <div id="initialScreen">
+        <div style="text-align: center;">
+            <img src="https://upload-bbs.miyoushe.com/upload/2024/05/10/404686886/17350b7b4b6f4c5af3d5d5bcc4a52250_6220852643654440217.png"  
+                 style="width: auto; height: 8em;">
+        </div>
+        <h1>叫地主？</h1>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">      
+            <button class="start-button" id="hostGameButton">主持游戏</button>
+            <button class="start-button" id="joinGameButton">加入游戏</button>
+        </div>      
+        <div id="connectionStatus" style="margin-top: 10px; font-size: 14px; color: rgb(255, 187, 0); text-align: center;">
+            正在连接多人游戏服务器，可能需要1~30秒...
+        </div>
+        <h6 style="margin-top: 10px; font-size: 11px; color: gray; text-align: center;">
+            推荐使用电脑端主持游戏，主持人杀后台、掉线会使房间解散。
+        </h6>        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+            <button class="start-button" id="exploreButton">进去看看</button>
+        </div>
+    </div>    <!-- 主游戏界面 -->
+    <div id="gameScreen" style="display: none;">        <!-- 房间码复制区域 -->
+        <div id="roomCodeSection" class="room-code-section" style="display: none;">
+            <span class="room-code-label">房间代码:</span>
+            <span id="roomCodeDisplay" class="room-code-value">----</span>
+            <button id="copyRoomCodeBtn" class="copy-room-btn">复制</button>
+        </div>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="start-button" id="settingsButton">设置</button>
+        </div>
+        <h1>抽取角色</h1>
+        <button class="bp-button" id="bpButton">BP模式：关闭</button>
+        <button class="reset-button" id="resetButton" style="display: none;">重置游戏</button>
+        <div class="container">
+            <div class="character-box" id="box1">
+                <img class="character-image" src="" alt="" style="display: none;">
+                <div class="character-name"></div>
+            </div>
+            <div class="character-box" id="box2">
+                <img class="character-image" src="" alt="" style="display: none;">
+                <div class="character-name"></div>
+            </div>
+            <div class="character-box" id="box3">
+                <img class="character-image" src="" alt="" style="display: none;">
+                <div class="character-name"></div>
+            </div>
+            <div class="character-box" id="box4">
+                <img class="character-image" src="" alt="" style="display: none;">
+                <div class="character-name"></div>
+            </div>
+        </div>
+        <button class="start-button" id="startButton">开始抽取</button>
+        <div id="roundCounter" style="margin: 10px 0; font-size: 16px; color: #666;">当前轮数：0</div>
+        <div id="timeCounter" style="margin: 10px 0; font-size: 16px; color: #666;">总用时：00:00 | 本轮用时：00:00</div>
+        <h1>抽取事件</h1>
+        <div class="container">
+            <div class="mission-box" id="mission1">
+                <div class="mission-title"></div>
+                <div class="mission-content"></div>
+            </div>
+            <div class="mission-box" id="mission2">
+                <div class="mission-title"></div>
+                <div class="mission-content"></div>
+            </div>
+            <div class="mission-box" id="mission3">
+                <div class="mission-title"></div>
+                <div class="mission-content"></div>
+            </div>
+            <div class="mission-box" id="mission4">
+                <div class="mission-title"></div>
+                <div class="mission-content"></div>
+            </div>        </div>
+        
+        <!-- 困难事件显示区域 -->
+        <div class="hard-missions-container" id="hardMissionsContainer">
+            <div class="hard-missions-title">团体事件</div>
+            <div class="hard-missions-grid" id="hardMissionsGrid">
+                <!-- 困难事件将动态添加到这里 -->
+            </div>
+        </div>
+        
+        <div class="selected-hard-mission" id="selectedHardMission" style="display: none;">
+            <div class="mission-title"></div>
+            <div class="mission-content"></div>
+        </div>
+        <div class="button-container">
+            <div id="rerollCounter" style="margin-bottom: 10px; font-size: 16px; color: #666; text-align: center;">
+                <button id="decreaseReroll" style="padding: 5px 10px; font-size: 16px;">-</button>
+                重抽次数：<span id="rerollCount">3</span>
+                <button id="increaseReroll" style="padding: 5px 10px; font-size: 16px;">+</button>
+            </div>            <button class="start-button" id="missionButton">抽取事件</button>
+            <button class="sync-button" id="syncButton" style="display: none;" >同步数据</button> 
+        </div>
+
+
+
+        <!-- 设置弹窗 -->
+        <div class="overlay" id="settingsOverlay" style="display: none;"></div>
+        <div class="settings-popup" id="settingsPopup" style="display: none;">
+            <button class="close-popup-button" id="closeSettingsPopup">✕</button>
+            <div class="settings-container">
+                <div class="settings-title">设置</div>
+                <!-- 左侧设置选项 -->
+                <div class="input">
+                    <button class="value" id="characterManagement">
+                        <svg data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                            <path d="m1.5 13v1a.5.5 0 0 0 .3379.4731 18.9718 18.9718 0 0 0 6.1621 1.0269 18.9629 18.9629 0 0 0 6.1621-1.0269.5.5 0 0 0 .3379-.4731v-1a6.5083 6.5083 0 0 0 -4.461-6.1676 3.5 3.5 0 1 0 -4.078 0 6.5083 6.5083 0 0 0 -4.461 6.1676zm4-9a2.5 2.5 0 1 1 2.5 2.5 2.5026 2.5026 0 0 1 -2.5-2.5zm2.5 3.5a5.5066 5.5066 0 0 1 5.5 5.5v.6392a18.08 18.08 0 0 1 -11 0v-.6392a5.5066 5.5066 0 0 1 5.5-5.5z" fill="#FFFFFF"></path>
+                        </svg>
+                        角色管理
+                    </button>
+                    <button class="value" id="characterHistory">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+                            <line x1="12" y1="12" x2="12" y2="7" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="12" y1="12" x2="16" y2="12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        角色历史记录
+                    </button>
+                    <button class="value" id="eventManagement">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="5" y="3" width="14" height="18" rx="1" ry="1" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+                            <rect x="8" y="1" width="2" height="2" fill="#FFFFFF"/>
+                            <rect x="14" y="1" width="2" height="2" fill="#FFFFFF"/>
+                            <line x1="5" y1="8" x2="19" y2="8" stroke="#FFFFFF" stroke-width="1"/>
+                            <line x1="5" y1="13" x2="19" y2="13" stroke="#FFFFFF" stroke-width="1"/>
+                            <rect x="9" y="10" width="2" height="2" fill="#FFFFFF"/>
+                            <rect x="14" y="10" width="2" height="2" fill="#FFFFFF"/>
+                            <rect x="9" y="15" width="2" height="2" fill="#FFFFFF"/>
+                            <rect x="12" y="15" width="2" height="2" fill="#FFFFFF"/>
+                            <rect x="15" y="15" width="2" height="2" fill="#FFFFFF"/>
+                            </svg>
+                        事件管理
+                    </button>
+                    <button class="value" id="eventHistory">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+                            <line x1="12" y1="12" x2="12" y2="7" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="12" y1="12" x2="16" y2="12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        事件历史记录
+                    </button>
+                        <button class="value" id="moreSettings">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="3" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M12,2 L12,0 M12,24 L12,22 M2,12 L0,12 M24,12 L22,12 M4.24,4.24 L2.83,2.83 M19.76,19.76 L21.17,21.17 M4.24,19.76 L2.83,21.17 M19.76,4.24 L21.17,2.83" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                            <rect x="7" y="8" width="2" height="8" fill="#FFFFFF"/>
+                            <rect x="5" y="10" width="6" height="2" fill="#FFFFFF"/>
+                            <circle cx="17" cy="10" r="1.5" fill="#FFFFFF"/>
+                            <circle cx="19" cy="12" r="1.5" fill="#FFFFFF"/>
+                            <circle cx="17" cy="14" r="1.5" fill="#FFFFFF"/>
+                            <circle cx="15" cy="12" r="1.5" fill="#FFFFFF"/>
+                            </svg>
+                        更多玩法设置
+                    </button>
+                    <button class="value" id="gameSettings">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" id="Line">
+                        <path
+                            d="m17.074 30h-2.148c-1.038 0-1.914-.811-1.994-1.846l-.125-1.635c-.687-.208-1.351-.484-1.985-.824l-1.246 1.067c-.788.677-1.98.631-2.715-.104l-1.52-1.52c-.734-.734-.78-1.927-.104-2.715l1.067-1.246c-.34-.635-.616-1.299-.824-1.985l-1.634-.125c-1.035-.079-1.846-.955-1.846-1.993v-2.148c0-1.038.811-1.914 1.846-1.994l1.635-.125c.208-.687.484-1.351.824-1.985l-1.068-1.247c-.676-.788-.631-1.98.104-2.715l1.52-1.52c.734-.734 1.927-.779 2.715-.104l1.246 1.067c.635-.34 1.299-.616 1.985-.824l.125-1.634c.08-1.034.956-1.845 1.994-1.845h2.148c1.038 0 1.914.811 1.994 1.846l.125 1.635c.687.208 1.351.484 1.985.824l1.246-1.067c.787-.676 1.98-.631 2.715.104l1.52 1.52c.734.734.78 1.927.104 2.715l-1.067 1.246c.34.635.616 1.299.824 1.985l1.634.125c1.035.079 1.846.955 1.846 1.993v2.148c0 1.038-.811 1.914-1.846 1.994l-1.635.125c-.208.687-.484 1.351-.824 1.985l1.067 1.246c.677.788.631 1.98-.104 2.715l-1.52 1.52c-.734.734-1.928.78-2.715.104l-1.246-1.067c-.635.34-1.299.616-1.985.824l-.125 1.634c-.079 1.035-.955 1.846-1.993 1.846zm-5.835-6.373c.848.53 1.768.912 2.734 1.135.426.099.739.462.772.898l.18 2.341 2.149-.001.18-2.34c.033-.437.347-.8.772-.898.967-.223 1.887-.604 2.734-1.135.371-.232.849-.197 1.181.089l1.784 1.529 1.52-1.52-1.529-1.784c-.285-.332-.321-.811-.089-1.181.53-.848.912-1.768 1.135-2.734.099-.426.462-.739.898-.772l2.341-.18h-.001v-2.148l-2.34-.18c-.437-.033-.8-.347-.898-.772-.223-.967-.604-1.887-1.135-2.734-.232-.37-.196-.849.089-1.181l1.529-1.784-1.52-1.52-1.784 1.529c-.332.286-.81.321-1.181.089-.848-.53-1.768-.912-2.734-1.135-.426-.099-.739-.462-.772-.898l-.18-2.341-2.148.001-.18 2.34c-.033.437-.347.8-.772.898-.967.223-1.887.604-2.734 1.135-.37.232-.849.197-1.181-.089l-1.785-1.529-1.52 1.52 1.529 1.784c.285.332.321.811.089 1.181-.53.848-.912 1.768-1.135 2.734-.099.426-.462.739-.898.772l-2.341.18.002 2.148 2.34.18c.437.033.8.347.898.772.223.967.604 1.887 1.135 2.734.232.37.196.849-.089 1.181l-1.529 1.784 1.52 1.52 1.784-1.529c.332-.287.813-.32 1.18-.089z"
+                            id="XMLID_1646_"
+                            fill="#FFFFFF"
+                        ></path>
+                        <path
+                            d="m16 23c-3.859 0-7-3.141-7-7s3.141-7 7-7 7 3.141 7 7-3.141 7-7 7zm0-12c-2.757 0-5 2.243-5 5s2.243 5 5 5 5-2.243 5-5-2.243-5-5-5z"
+                            fill="#FFFFFF"
+                            id="XMLID_1645_"
+                        ></path>
+                        </svg>
+                        游戏设置
+                    </button>
+                </div>
+                <!-- 右侧设置内容 -->
+                <div class="settings-content">
+                    <h2 id="settingsTitle">设置选项</h2>
+                    <div id="settingsDetails">
+                        <!-- 动态填充内容 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rules-container">
+            <h2>游戏规则</h2>
+            <hr style="border: none; border-top: 2px solid #3396D9; margin: 8px 0;">
+            <div class="rules-content">
+                <ul>
+                <h3>角色</h3> 
+                    <li>角色按照选择的bp模式进行随机抽</li>
+                    <li>点击对应的角色卡片可以重抽角色，碰到没有的角色跟地主说，重新抽取角色到有为止。</li>
+                    <li>通过事件更换的角色不bp</li>                <h3>事件</h3>                                      
+                    <li>点击"抽取事件"按钮会同时抽取4个个人事件和3个团体事件</li>
+                    <li>每位玩家可点击想玩的团体事件进行投票，地主算两票。</li>
+                    <li>胜出的作为本轮事件，两个平票会在其中随机抽取一个。</li>
+                    <li>团体事件与个人事件冲突情况，全体事件优先级大于个人事件。</li>
+                <h3>个人事件重抽</h3>
+                    <li>初始获得3次可重抽事件机会</li>
+                    <li>重抽事件机会可供全队重抽个人事件，共享使用次数。</li>                      
+                    <li>抽取每个事件会随机附加给予或扣除重抽事件的机会。
+                        <span id="viewProbabilityText" style="color: blue; text-decoration: underline; cursor: pointer;">查看概率</span>
+                        <span id="probabilityPopup" style="display: none; position: absolute; background: white; border: 1px solid #ccc; padding: 10px; border-radius: 5px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">
+                            每个事件的抽取有 5% 概率触发“重抽次数+1”或“重抽次数-1”（各 50% 概率），未触发时概率每次增加 5%，触发后重置为 5%，若连着出现两次 -1，则下一次出现必定为 +1。四人共享这个概率。
+                        </span>
+                    </li>
+                    <li>计数器不会统计部分事件本身自带的重抽，遇到了需要手动调整。</li>
+                    <h3>测试版，地主归最终解释权所有。</h3>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入角色数据JS文件 -->
+    <script src="characters.js"></script>
+    <script src="characterManagement.js"></script>
+    <script src="npc.js"></script>
+    <script src="mission.js"></script>    <script src="hardmission.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="history.js"></script>      <script src="eventHistory.js"></script>
+    <script src="events.js"></script>
+    <script src="app.js"></script>
+    <script src="mission-app.js"></script>
+    <script src="hard-mission-app.js"></script>
+    <script src="settings.js"></script>
+
+    <!-- 页脚署名 -->
+    <footer class="footer">
+        <p>随机角色事件生成器 </p>
+        <p>原@虾仁不眨眼happy-car.netlify.app的个性化修改版 </p>
+        <p>修改部分纯AI写的屎山代码，有bug请憋着，唉嘿</p>
+        <p>服务端一直连接不上就是宕机了，也请憋着，嘿嘿</p>
+        <p>反馈bug等请 <a href="https://github.com/kunkun11451/unhappycar" target="_blank" style="color: blue; text-decoration: underline;">访问 GitHub 项目</a>查看</p>
+        <img src="https://upload-bbs.miyoushe.com/upload/2024/06/29/273489775/4be47bf1376bfb4f69c1e3fe26c8a8e8_8119842655567179283.png" style="width: auto; height: 8em;">
+    </footer>
+</body>
+</html>
