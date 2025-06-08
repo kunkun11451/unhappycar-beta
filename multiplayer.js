@@ -1,4 +1,15 @@
 document.addEventListener('DOMContentLoaded', function () {
+    // 在连接WebSocket之前先发送一次HTTP请求唤醒服务器
+    console.log('发送唤醒请求到服务器...');
+    fetch('https://foremost-plum-octopus.glitch.me/wakeup', {
+        method: 'GET',
+        mode: 'no-cors'
+    }).then(() => {
+        console.log('服务器唤醒请求已发送');
+    }).catch(err => {
+        console.log('服务器唤醒请求发送（可能失败，但不影响后续连接）:', err.message);
+    });
+
     const ws = new WebSocket('wss://foremost-plum-octopus.glitch.me');
 
     // DOM 元素
@@ -259,39 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
             lastEventSyncTime = Date.now(); // 记录事件同步时间
             syncGameState(false); // 事件驱动同步，非保活
         }
-    }
-
-    // 绑定同步按钮点击事件
-    syncButton.addEventListener('click', (event) => {
-        syncGameState(); // 调用同步数据函数
-
-        // 创建提示框
-        const tooltip = document.createElement('div');
-        tooltip.textContent = '已同步';
-        tooltip.style.position = 'absolute';
-        tooltip.style.backgroundColor = '#8e44ad';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '5px 10px';
-        tooltip.style.borderRadius = '5px';
-        tooltip.style.fontSize = '14px';
-        tooltip.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.zIndex = '1000';
-
-        // 设置提示框位置（基于鼠标位置）
-        tooltip.style.left = `${event.pageX + 10}px`;
-        tooltip.style.top = `${event.pageY + 10}px`;
-
-        // 添加到文档中
-        document.body.appendChild(tooltip);
-
-        // 2秒后移除提示框
-        setTimeout(() => {
-            tooltip.remove();
-        }, 1000);
-    });
-
-    // 在主界面顶部动态显示当前人数
+    }    // 在主界面顶部动态显示当前人数和房间码
     function showPlayerCount(count) {
     // 检查是否已经存在提示框
     let playerCountDisplay = document.getElementById('playerCountDisplay');
@@ -303,16 +282,66 @@ document.addEventListener('DOMContentLoaded', function () {
         playerCountDisplay.style.top = '10px';
         playerCountDisplay.style.left = '50%';
         playerCountDisplay.style.transform = 'translateX(-50%)';
-        playerCountDisplay.style.color = '#000'; 
-        playerCountDisplay.style.fontSize = '16px';
+        playerCountDisplay.style.borderRadius = '8px';
+        playerCountDisplay.style.padding = '8px 12px';
+        playerCountDisplay.style.color = '#333'; 
+        playerCountDisplay.style.fontSize = '14px';
         playerCountDisplay.style.zIndex = '1000';
         playerCountDisplay.style.textAlign = 'center';
+        playerCountDisplay.style.display = 'flex';
+        playerCountDisplay.style.alignItems = 'center';
+        playerCountDisplay.style.gap = '10px';
+        
         // 添加到主界面
         gameScreen.appendChild(playerCountDisplay);
     }
 
     // 更新提示框内容
-    playerCountDisplay.textContent = `当前人数：${count}`;
+    let content = `当前人数：${count}`;
+    
+    // 如果有房间码，添加房间码和复制按钮
+    if (currentRoomId) {
+        content = `
+            <span>当前人数：${count}</span>
+            <span style="margin: 0 5px;">|</span>
+            <span>房间码：${currentRoomId}</span>
+            <button id="copyRoomCodeButton" style="
+                background: #3498db;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+                cursor: pointer;
+                margin-left: 5px;
+            ">复制</button>
+        `;
+        
+        playerCountDisplay.innerHTML = content;
+        
+        // 添加复制功能
+        const copyButton = document.getElementById('copyRoomCodeButton');
+        if (copyButton) {
+            copyButton.addEventListener('click', function() {
+                navigator.clipboard.writeText(currentRoomId).then(function() {
+                    // 临时更改按钮文本以显示复制成功
+                    const originalText = copyButton.textContent;
+                    copyButton.textContent = '已复制';
+                    copyButton.style.background = '#27ae60';
+                    
+                    setTimeout(function() {
+                        copyButton.textContent = originalText;
+                        copyButton.style.background = '#3498db';
+                    }, 1000);
+                }).catch(function(err) {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制房间码：' + currentRoomId);
+                });
+            });
+        }
+    } else {
+        playerCountDisplay.textContent = content;
+    }
 }
 
 // 显示临时提示框
@@ -320,7 +349,7 @@ function showTemporaryMessage(message) {
     // 创建提示框容器
     const messageBox = document.createElement('div');
     messageBox.style.position = 'fixed';
-    messageBox.style.top = '10%';
+    messageBox.style.top = '15%';
     messageBox.style.left = '50%';
     messageBox.style.transform = 'translateX(-50%)';
     messageBox.style.backgroundColor = '#3498db';
@@ -339,7 +368,7 @@ function showTemporaryMessage(message) {
     // 3秒后移除提示框
     setTimeout(() => {
         messageBox.remove();
-    }, 3000);
+    }, 5000);
 }
 
 // WebSocket 消息处理
@@ -352,9 +381,13 @@ ws.onmessage = (event) => {
             // 设置主持人的玩家ID
             currentPlayerId = 'host_' + Math.random().toString(36).substr(2, 9);
             console.log('创建房间，主持人ID:', currentPlayerId);
-            alert(`房间已创建！\n你需要为所有人抽取角色和事件\n点击对应的角色框可为没有的重新抽取\n房间代码：${currentRoomId}`);
+            showTemporaryMessage(`房间已创建！你需要为所有人抽取角色和事件，点击对应的角色框可为没有的重新抽取`);
             initialScreen.style.display = 'none';
             gameScreen.style.display = 'block';
+            
+            // 主持人创建房间后立即显示玩家数量提示框
+            currentPlayerCount = 1; // 主持人自己算一个玩家
+            showPlayerCount(currentPlayerCount);
             
             // 设置事件驱动同步监听器
             setupEventDrivenSync();
@@ -366,6 +399,9 @@ ws.onmessage = (event) => {
             showTemporaryMessage('成功加入房间！地主会帮你完成所有操作，等着就行。'); // 使用临时提示框
             initialScreen.style.display = 'none';
             gameScreen.style.display = 'block';
+            
+            // 玩家加入房间后立即显示玩家数量提示框（使用当前存储的数量）
+            showPlayerCount(currentPlayerCount);
             
             // 即使是非主持人，也需要设置事件监听器（虽然不会触发同步）
             setupEventDrivenSync();
@@ -459,6 +495,13 @@ ws.onmessage = (event) => {
             break;        case 'votingStateSync':
             // 处理新的服务器投票状态同步消息
             console.log('收到服务器投票状态同步:', data.votingState);
+            
+            // 检查是否是新轮投票开始，如果是则强制允许UI重建
+            if (data.votingState && data.votingState.isNewRound && window.hardMissionVoting && window.hardMissionVoting.allowUIRebuild) {
+                console.log('检测到新轮投票开始，强制允许UI重建');
+                window.hardMissionVoting.allowUIRebuild();
+            }
+            
             if (window.hardMissionVoting && window.hardMissionVoting.syncVotingState) {
                 window.hardMissionVoting.syncVotingState({ votingState: data.votingState }, 'server');
             }
@@ -734,6 +777,27 @@ ws.onmessage = (event) => {
         return true;
     }
 
+    // 手动结算投票 - 主机专用
+    function manualSettleVoting() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket连接未打开，无法手动结算投票');
+            return false;
+        }
+        
+        if (!isHost) {
+            console.error('只有主机可以手动结算投票');
+            return false;
+        }
+        
+        console.log('主机手动结算投票');
+        ws.send(JSON.stringify({ 
+            type: 'manualSettleVoting', 
+            roomId: currentRoomId,
+            hostId: currentPlayerId
+        }));
+        return true;
+    }
+
     // 事件驱动同步：在关键操作时自动触发同步
     function setupEventDrivenSync() {
         if (!isHost) {
@@ -803,13 +867,13 @@ ws.onmessage = (event) => {
             syncGameState();
         }
     }
-    
-    // 导出多人游戏管理器
+      // 导出多人游戏管理器
 window.multiplayerManager = {
     syncVoteState,
     syncVotingResult,
     startVoting,
     submitVote,
+    manualSettleVoting,
     isConnected: () => ws && ws.readyState === WebSocket.OPEN,
     getCurrentPlayerId: () => currentPlayerId || 'player1',
     isHost: () => isHost,

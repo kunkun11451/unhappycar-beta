@@ -208,7 +208,6 @@ function handleVote(missionIndex) {
             playerVotes: Object.keys(playerVotes).length,
             votingResults
         });
-        alert('当前不在投票阶段');
         return;
     }
     
@@ -244,10 +243,12 @@ function handleVote(missionIndex) {
             console.log(`添加持久化voted样式到事件 ${missionIndex}`);        
         // 发送投票到服务器
         window.multiplayerManager.submitVote(missionIndex, currentPlayerId);
-        
-        // 显示投票反馈
+          // 显示投票反馈
         const voteWeight = isHost() ? 2 : 1;
         showVoteConfirmation(currentPlayerId, missionIndex, voteWeight);
+        
+        // 更新所有卡片的投票状态文本
+        updateAllVotingStatus();
         
     } else {
         // 单人游戏模式：保持原有客户端逻辑
@@ -286,9 +287,11 @@ function handleVoteSinglePlayer(missionIndex) {
     votingResults[missionIndex] += voteWeight;
     
     console.log('添加新投票:', { missionIndex, voteWeight, newTotal: votingResults[missionIndex] });
-    
-    // 更新显示
+      // 更新显示
     updateVoteDisplay(missionIndex);
+    
+    // 更新所有卡片的投票状态文本
+    updateAllVotingStatus();
     
     // 添加投票样式
     const missionBox = document.querySelector(`[data-mission-index="${missionIndex}"]`);
@@ -311,12 +314,63 @@ function updateVoteDisplay(missionIndex) {
     const voteCount = votingResults[missionIndex] || 0;
     voteDotsContainer.innerHTML = '';
     
+    // 添加投票点数，每个都使用随机图像
     for (let i = 0; i < voteCount; i++) {
         const dot = document.createElement('div');
         dot.className = 'vote-dot';
         dot.style.animationDelay = `${i * 0.1}s`;
+        dot.style.backgroundImage = `url('${getRandomVoteDotImage()}')`;
         voteDotsContainer.appendChild(dot);
     }
+}
+
+// 更新所有投票卡片的状态文本
+function updateAllVotingStatus() {
+    if (!votingActive) {
+        // 如果投票已结束，移除状态显示
+        const existingStatus = document.querySelector('.global-vote-status');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+        return;
+    }
+
+    const totalPlayers = getExpectedPlayerCount();
+    const votedPlayers = Object.keys(playerVotes).length;
+    
+    // 查找或创建全局投票状态显示区域
+    const hardMissionsContainer = document.getElementById('hardMissionsContainer');
+    let statusContainer = document.querySelector('.global-vote-status');
+    
+    if (!statusContainer) {
+        statusContainer = document.createElement('div');
+        statusContainer.className = 'global-vote-status';
+        statusContainer.style.cssText = `
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 15px;
+            padding: 8px;
+        `;
+        
+        // 将状态显示添加到困难事件容器的末尾
+        hardMissionsContainer.appendChild(statusContainer);
+    }
+    
+    statusContainer.textContent = `${votedPlayers}/${totalPlayers} 已完成投票`;
+    
+    // 更新每个卡片的投票点数显示
+    for (let i = 0; i < 3; i++) {
+        updateVoteDisplay(i);
+    }
+}
+
+// 获取随机投票点图像
+function getRandomVoteDotImage() {
+    const images = [
+        'https://upload-bbs.miyoushe.com/upload/2024/06/29/273489775/4be47bf1376bfb4f69c1e3fe26c8a8e8_8119842655567179283.png'
+    ];
+    return images[Math.floor(Math.random() * images.length)];
 }
 
 // 检查投票是否完成（仅单人游戏模式使用）
@@ -415,11 +469,39 @@ function showVotingInstructions() {
     
     const instructions = document.createElement('div');
     instructions.className = 'voting-instructions';
-    instructions.innerHTML = `
+    
+    let instructionsHTML = `
         <p style="text-align: center; color: #666; margin: 10px 0;">
             请点击选择一个团体事件进行投票
         </p>
     `;
+    
+    // 为主持人添加手动结算按钮
+    if (isHost() && votingActive) {
+        instructionsHTML += `
+            <div style="text-align: center; margin: 15px 0;">
+                <button id="manualSettleBtn" onclick="manualSettleVoting()" style="
+                    background: #ff6b35;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: bold;
+                    transition: background-color 0.3s;
+                " onmouseover="this.style.backgroundColor='#e55a2b'" 
+                   onmouseout="this.style.backgroundColor='#ff6b35'">
+                    手动结算投票
+                </button>
+                <p style="font-size: 12px; color: #999; margin: 5px 0 0 0;">
+                    小概率情况会没有自动结算，可以点击此按钮可立即结束投票并显示当前结果
+                </p>
+            </div>
+        `;
+    }
+    
+    instructions.innerHTML = instructionsHTML;
     
     container.insertBefore(instructions, container.querySelector('.hard-missions-grid'));
 }
@@ -524,6 +606,49 @@ function showVoteConfirmation(playerId, missionIndex, voteWeight) {
             confirmation.parentNode.removeChild(confirmation);
         }
     }, 3000);
+}
+
+// 手动结算投票（主持人专用）
+function manualSettleVoting() {
+    if (!isHost()) {
+        alert('只有主持人可以手动结算投票');
+        return;
+    }
+    
+    if (!votingActive) {
+        alert('当前没有进行中的投票');
+        return;
+    }
+    
+    console.log('主持人手动结算投票');
+    
+    // 检查是否在多人游戏模式
+    if (window.multiplayerManager && window.multiplayerManager.isConnected()) {
+        // 多人游戏模式：发送手动结算请求到服务器
+        console.log('发送手动结算请求到服务器');
+        
+        if (window.multiplayerManager.manualSettleVoting) {
+            window.multiplayerManager.manualSettleVoting();
+        } else {
+            console.error('多人游戏管理器不支持手动结算功能');
+            alert('多人游戏模式下手动结算功能暂时不可用');
+        }
+    } else {
+        // 单人游戏模式：直接执行本地结算
+        console.log('单人游戏模式：执行本地手动结算');
+        
+        // 检查是否有任何投票
+        const totalVotes = Object.values(votingResults).reduce((sum, votes) => sum + votes, 0);
+        if (totalVotes === 0) {
+            alert('还没有任何投票，无法结算');
+            return;
+        }
+        
+        // 确认操作
+        if (confirm('确定要立即结束投票并显示当前结果吗？')) {
+            finishVoting();
+        }
+    }
 }
 
 // 测试模式函数 - 用于调试多人游戏投票
@@ -702,17 +827,16 @@ function handleServerVotingState(votingState) {
         if (!document.querySelector('.hard-mission-box')) {
             createHardMissionUIFromServer(votingState.missions);
         }
-    }
-      // 检查是否是新轮投票开始（重置状态）
+    }    // 检查是否是新轮投票开始（重置状态）
     if (votingState.isNewRound) {
-        console.log('检测到新轮投票开始，清除普通玩家的投票状态');
+        console.log('检测到新轮投票开始，清除普通玩家的投票状态，允许UI重建');
         playerVotes = {};
         votingResults = {0: 0, 1: 0, 2: 0};
         
-        // 重置投票结果保护状态
+        // 重置投票结果保护状态，允许UI重建
         votingResultShown = false;
         votingResultTime = null;
-        console.log('投票结果保护状态已重置');
+        console.log('投票结果保护状态已重置，UI可以重建');
         
         // 清除所有投票相关样式
         document.querySelectorAll('.hard-mission-box').forEach(box => {
@@ -741,11 +865,13 @@ function handleServerVotingState(votingState) {
     if (votingState.voteResults) {
         votingResults = { ...votingState.voteResults };
         console.log('同步投票结果:', votingResults);
-        
-        // 更新投票点数显示
+          // 更新投票点数显示
         Object.keys(votingResults).forEach(index => {
             updateVoteDisplay(parseInt(index));
         });
+        
+        // 更新所有卡片的投票状态文本
+        updateAllVotingStatus();
     }
     
     // 更新投票样式（确保正确显示当前玩家的投票状态）
@@ -937,10 +1063,15 @@ window.hardMissionVoting = {
     displayHardMissionsWithVoting,
     syncVotingState,
     syncVotingResult,
-    handleVote,
-    isVotingActive: () => {
+    handleVote,    isVotingActive: () => {
         // 如果正在投票，返回true
         if (votingActive) {
+            return true;
+        }
+        
+        // 对于非主持人，如果已经有困难事件UI，在没有明确开始新轮投票前都保持UI不重建
+        if (!isHost() && document.querySelector('.hard-mission-box')) {
+            console.log('非主持人且已有困难事件UI，保持不重建直到新轮投票开始');
             return true;
         }
         
@@ -957,8 +1088,13 @@ window.hardMissionVoting = {
                 votingResultTime = null;
                 return false;
             }
-        }
-        
+        }        
         return false;
+    },
+    // 强制允许UI重建（用于新轮投票开始时）
+    allowUIRebuild: () => {
+        console.log('强制允许UI重建');
+        votingResultShown = false;
+        votingResultTime = null;
     }
 };

@@ -45,6 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let rerollChance = 0.05; // 初始概率为 5%
     let negativeCount = 0; // 累计 -1 的次数  
     
+    // 等待自适应选择器脚本加载后初始化
+    setTimeout(() => {
+        initializeAdaptiveSelector();
+    }, 100);
+    
     // 初始化动画效果
     missionBoxes.forEach((box, index) => {
         setTimeout(() => {
@@ -61,11 +66,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 refreshSingleMission(box, index);
             });
         }, 100 * index);
-    });
+    });    // 初始化自适应事件选择器
+    let adaptiveSelector = null;
     
-    // 随机选择事件
+    // 初始化选择器的函数
+    function initializeAdaptiveSelector() {
+        if (typeof AdaptiveEventSelector !== 'undefined' && typeof adaptiveConfigManager !== 'undefined') {
+            // 获取当前配置
+            const currentConfig = adaptiveConfigManager.getCurrentConfig();
+            
+            // 创建自适应选择器实例
+            adaptiveSelector = new AdaptiveEventSelector(currentConfig.config);
+            
+            console.log('✅ 自适应事件选择器已启用');
+            console.log(`📋 当前策略: ${currentConfig.preset} (${ADAPTIVE_PRESETS[currentConfig.preset]?.name || '未知'})`);
+        } else {
+            console.warn('⚠️ 自适应事件选择器或配置管理器未加载，使用传统随机算法');
+        }
+    }
+
+    // 随机选择事件 - 集成自适应算法
     function getRandomMissions(count) {
         const keys = getMissionKeys(); // 获取已启用的任务
+        
+        if (keys.length === 0) {
+            return [];
+        }
+        
+        // 尝试使用自适应选择器
+        if (adaptiveSelector) {
+            try {
+                return adaptiveSelector.selectEvents([...keys], count);
+            } catch (error) {
+                console.error('自适应选择器出错，降级到传统算法:', error);
+            }
+        }
+        
+        // 降级到传统随机算法
         const shuffled = [...keys].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count);
     }
@@ -465,4 +502,127 @@ document.addEventListener('DOMContentLoaded', function() {
             probabilityPopup.style.display = 'none';
         }
     });
+    
+    // 自适应选择器管理功能
+    window.adaptiveEventManager = {
+        // 获取选择器实例
+        getSelector: () => adaptiveSelector,
+          // 切换策略
+        setStrategy: (strategy) => {
+            if (adaptiveSelector && adaptiveConfigManager) {
+                const config = adaptiveConfigManager.setPreset(strategy);
+                if (config) {
+                    // 重新创建选择器实例以应用新配置
+                    const currentStats = adaptiveSelector.getStats();
+                    const currentHistory = adaptiveSelector.selectionHistory;
+                    
+                    adaptiveSelector = new AdaptiveEventSelector(config.config);
+                    
+                    // 恢复历史记录（可选）
+                    if (currentHistory && currentHistory.length > 0) {
+                        adaptiveSelector.selectionHistory = currentHistory;
+                        adaptiveSelector.roundCounter = currentStats.rounds;
+                    }
+                    
+                    console.log(`🔧 策略已切换为: ${strategy} (${ADAPTIVE_PRESETS[strategy]?.name || '未知'})`);
+                }
+            }
+        },
+        
+        // 应用情境配置
+        applyScenario: (scenarioName) => {
+            if (adaptiveConfigManager) {
+                const success = adaptiveConfigManager.applyScenarioConfig(scenarioName);
+                if (success) {
+                    // 重新初始化选择器
+                    initializeAdaptiveSelector();
+                    console.log(`🎯 已应用情境配置: ${SCENARIO_CONFIGS[scenarioName]?.name || scenarioName}`);
+                }
+                return success;
+            }
+            return false;
+        },
+        
+        // 获取配置管理器
+        getConfigManager: () => adaptiveConfigManager,
+        
+        // 获取统计信息
+        getStats: () => {
+            return adaptiveSelector ? adaptiveSelector.getStats() : null;
+        },
+        
+        // 获取权重信息
+        getWeights: () => {
+            return adaptiveSelector ? adaptiveSelector.getWeightInfo() : null;
+        },
+        
+        // 重置选择器
+        reset: () => {
+            if (adaptiveSelector) {
+                adaptiveSelector.reset();
+                console.log('🔄 自适应选择器已重置');
+            }
+        },
+        
+        // 显示详细统计报告
+        showReport: () => {
+            if (!adaptiveSelector) {
+                console.log('❌ 自适应选择器未初始化');
+                return;
+            }
+            
+            const stats = adaptiveSelector.getStats();
+            const weights = adaptiveSelector.getWeightInfo();
+            
+            console.log('📊 自适应事件选择器统计报告:');
+            console.log('=====================================');
+            console.log(`策略: ${stats.strategy}`);
+            console.log(`总轮次: ${stats.rounds}`);
+            console.log(`总选择数: ${stats.totalSelections}`);
+            console.log(`独特事件数: ${stats.uniqueEvents}`);
+            console.log(`平均重复率: ${stats.averageRepeatRate.toFixed(1)}%`);
+            console.log(`权重调整次数: ${stats.weightAdjustments}`);
+            console.log('=====================================');
+            
+            // 显示权重排行
+            console.log('🏆 当前事件权重排行 (前10名):');
+            weights.slice(0, 10).forEach((item, index) => {
+                const consecutive = item.consecutive > 0 ? ` (连续${item.consecutive}次)` : '';
+                console.log(`${index + 1}. ${item.event}: ${item.weight.toFixed(3)}${consecutive}`);
+            });
+            
+            return { stats, weights };
+        },
+        
+        // 模拟测试功能
+        simulateRounds: (rounds = 10) => {
+            if (!adaptiveSelector) {
+                console.log('❌ 自适应选择器未初始化');
+                return;
+            }
+            
+            console.log(`🧪 开始模拟 ${rounds} 轮事件选择...`);
+            const keys = getMissionKeys();
+            
+            for (let i = 0; i < rounds; i++) {
+                const selected = adaptiveSelector.selectEvents([...keys], 4);
+                console.log(`轮次 ${i + 1}: [${selected.join(', ')}]`);
+            }
+            
+            return adaptiveEventManager.showReport();
+        }
+    };
+
+    // 在控制台输出帮助信息
+    setTimeout(() => {
+        if (adaptiveSelector) {
+            console.log('%c🎲 自适应事件选择器已启用！', 'color: #4CAF50; font-size: 14px; font-weight: bold;');
+            console.log('%c使用以下命令来管理选择器:', 'color: #2196F3; font-size: 12px;');
+            console.log('📈 adaptiveEventManager.showReport() - 查看统计报告');
+            console.log('🔧 adaptiveEventManager.setStrategy("conservative"|"balanced"|"aggressive") - 切换策略');
+            console.log('🔄 adaptiveEventManager.reset() - 重置选择器');
+            console.log('🧪 adaptiveEventManager.simulateRounds(10) - 模拟测试');
+            console.log('⚖️ adaptiveEventManager.getWeights() - 查看权重信息');
+        }
+    }, 2000);
 });
